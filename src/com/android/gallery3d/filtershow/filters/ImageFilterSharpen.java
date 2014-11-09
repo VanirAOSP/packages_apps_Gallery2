@@ -17,6 +17,7 @@
 package com.android.gallery3d.filtershow.filters;
 
 import com.android.gallery3d.R;
+import com.android.gallery3d.filtershow.editors.BasicEditor;
 
 public class ImageFilterSharpen extends ImageFilterRS {
     private static final String SERIALIZATION_NAME = "SHARPEN";
