@@ -76,12 +76,6 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="delete_all">"Delete all"</string>
     <string name="default_title">"Default title"</string>
 
-    <!-- Toast if the muted video is not supported. [CHAR LIMIT=80] -->
-    <string name="mute_nosupport">Can not mute : video not supported</string>
-
-    <!-- The tips of trimming video -->
-    <string name="fail_trim">Sorry, this video file can not be trimmed</string>
-
     <!-- The label for the bass boost knob of the audio effects dialog. -->
     <string name="bass_boost_strength">Bass boost</string>
 
