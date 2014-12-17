@@ -18,10 +18,7 @@ package com.android.gallery3d.filtershow.filters;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.renderscript.Allocation;
-import android.renderscript.Element;
-import android.renderscript.RenderScript;
-import android.renderscript.Type;
+import android.support.v8.renderscript.*;
 import android.util.Log;
 import android.content.res.Resources;
 import com.android.gallery3d.R;
@@ -162,7 +159,8 @@ public abstract class ImageFilterRS extends ImageFilter {
 
     private static Allocation convertRGBAtoA(RenderScript RS, Bitmap bitmap) {
         if (RS != mRScache || mGreyConvert == null) {
-            mGreyConvert = new ScriptC_grey(RS);
+            mGreyConvert = new ScriptC_grey(RS, RS.getApplicationContext().getResources(),
+                                            R.raw.grey);
             mRScache = RS;
         }
 

@@ -64,7 +64,7 @@ public class ImageFilterSharpen extends ImageFilterRS {
     protected void createFilter(android.content.res.Resources res, float scaleFactor,
             int quality) {
         if (mScript == null) {
-            mScript = new ScriptC_convolve3x3(getRenderScriptContext());
+            mScript = new ScriptC_convolve3x3(getRenderScriptContext(), res, R.raw.convolve3x3);
         }
     }
 
