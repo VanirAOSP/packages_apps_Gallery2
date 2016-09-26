@@ -1,6 +1,7 @@
 package org.codeaurora.gallery3d.video;
 
 import android.app.AlertDialog;
+import android.app.KeyguardManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -95,6 +96,9 @@ public class CodeauroraVideoView extends SurfaceView implements MediaPlayerContr
     private boolean mHasGotMetaData = false;
     private boolean mOnResumed;
     private boolean mIsShowDialog = false;
+    private boolean mErrorDialogShowing = false;
+    private KeyguardManager mKeyguardManager;
+    private AudioManager.OnAudioFocusChangeListener mAudioFocusListener;
 
     private final Handler mHandler = new Handler() {
         public void handleMessage(final Message msg) {
@@ -180,7 +184,7 @@ public class CodeauroraVideoView extends SurfaceView implements MediaPlayerContr
             Log.v(TAG, "onMeasure() mNeedWaitLayout=" + mNeedWaitLayout);
         }
         setMeasuredDimension(width, height);
-        if (mNeedWaitLayout) { // when OnMeasure ok, start video.
+        if (mNeedWaitLayout || mCurrentState == STATE_PREPARING) { // when OnMeasure ok, start video.
             mNeedWaitLayout = false;
             mHandler.sendEmptyMessage(MSG_LAYOUT_READY);
         }
@@ -272,12 +276,13 @@ public class CodeauroraVideoView extends SurfaceView implements MediaPlayerContr
                     }
                 }
 
+                mMediaPlayer.reset();
                 /* Otherwise, pop up an error dialog so the user knows that
                  * something bad has happened. Only try and pop up the dialog
                  * if we're attached to a window. When we're going away and no
                  * longer have a window, don't bother showing the user an error.
                  */
-                if (getWindowToken() != null) {
+                if (getWindowToken() != null && mErrorDialogShowing == false) {
                     final Resources r = mContext.getResources();
                     int messageId;
 
@@ -294,13 +299,16 @@ public class CodeauroraVideoView extends SurfaceView implements MediaPlayerContr
                                         /* If we get here, there is no onError listener, so
                                          * at least inform them that the video is over.
                                          */
+                                        mErrorDialogShowing = false;
                                         if (mOnCompletionListener != null) {
                                             mOnCompletionListener.onCompletion(mMediaPlayer);
                                         }
+                                        release(true);
                                     }
                                 })
                         .setCancelable(false)
                         .show();
+                     mErrorDialogShowing = true;
                 }
                 return true;
             }
@@ -447,12 +455,14 @@ public class CodeauroraVideoView extends SurfaceView implements MediaPlayerContr
             mMediaPlayer = null;
             mCurrentState = STATE_IDLE;
             mTargetState  = STATE_IDLE;
+            AudioManager am = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+            am.abandonAudioFocus(null);
         }
     }
 
     private void openVideo() {
         clearVideoInfo();
-        if (mUri == null || mSurfaceHolder == null) {
+        if (mUri == null || mSurfaceHolder == null || mTargetState == STATE_ERROR) {
             // not ready for playback just yet, will try again later
             return;
         }
@@ -465,6 +475,9 @@ public class CodeauroraVideoView extends SurfaceView implements MediaPlayerContr
             mErrorListener.onError(mMediaPlayer, MediaPlayer.MEDIA_ERROR_UNKNOWN, 0);
             return;
         }
+        AudioManager am = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+        am.requestAudioFocus(mAudioFocusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+
         try {
             mMediaPlayer = new MediaPlayer();
             if (mAudioSession != 0) {
@@ -614,6 +627,10 @@ public class CodeauroraVideoView extends SurfaceView implements MediaPlayerContr
         mOnInfoListener = l;
     }
 
+    public void setOnAudioFocusChangeListener(AudioManager.OnAudioFocusChangeListener l) {
+        mAudioFocusListener = l;
+    }
+
     SurfaceHolder.Callback mSHCallback = new SurfaceHolder.Callback() {
         public void surfaceChanged(SurfaceHolder holder, int format,
                                     int w, int h) {
@@ -686,6 +703,8 @@ public class CodeauroraVideoView extends SurfaceView implements MediaPlayerContr
             if (cleartargetstate) {
                 mTargetState  = STATE_IDLE;
             }
+            AudioManager am = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+            am.abandonAudioFocus(null);
         }
     }
 
@@ -960,6 +979,21 @@ public class CodeauroraVideoView extends SurfaceView implements MediaPlayerContr
         setVideoURI(uri, headers);
     }
 
+    private boolean isKeyguardLocked() {
+        if (mKeyguardManager == null) {
+            mKeyguardManager =
+                    (KeyguardManager) mContext.getSystemService(Context.KEYGUARD_SERVICE);
+        }
+        // isKeyguardSecure excludes the slide lock case.
+        boolean locked = (mKeyguardManager != null)
+                && mKeyguardManager.inKeyguardRestrictedInputMode();
+        if (LOG) {
+            Log.v(TAG, "isKeyguardLocked() locked=" + locked + ", mKeyguardManager="
+                    + mKeyguardManager);
+        }
+        return locked;
+    }
+
     private void doPreparedIfReady(final MediaPlayer mp) {
         if (LOG) {
             Log.v(TAG, "doPreparedIfReady() mHasGotPreparedCallBack=" + mHasGotPreparedCallBack
@@ -967,7 +1001,7 @@ public class CodeauroraVideoView extends SurfaceView implements MediaPlayerContr
                     + mNeedWaitLayout
                     + ", mCurrentState=" + mCurrentState);
         }
-        if (mHasGotPreparedCallBack && mHasGotMetaData && !mNeedWaitLayout) {
+        if (mHasGotPreparedCallBack && mHasGotMetaData && !mNeedWaitLayout && !isKeyguardLocked()) {
             doPrepared(mp);
         }
     }

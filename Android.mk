@@ -22,7 +22,7 @@ LOCAL_AAPT_FLAGS := --auto-add-overlay
 
 LOCAL_PACKAGE_NAME := Gallery2
 
-LOCAL_CERTIFICATE := platform
+LOCAL_PRIVILEGED_MODULE := true
 
 LOCAL_OVERRIDES_PACKAGES := Gallery Gallery3D GalleryNew3D
 
@@ -43,6 +43,8 @@ else
 endif
 
 LOCAL_PROGUARD_FLAG_FILES := proguard.flags
+
+LOCAL_MULTILIB := 32
 
 LOCAL_JAVA_LIBRARIES += org.apache.http.legacy
 

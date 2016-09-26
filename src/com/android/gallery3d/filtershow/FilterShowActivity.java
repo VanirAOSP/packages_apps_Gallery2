@@ -499,19 +499,8 @@ public class FilterShowActivity extends FragmentActivity implements OnItemClickL
             mCategoryGeometryAdapter.clear();
         }
         mCategoryGeometryAdapter = new CategoryAdapter(this);
-        boolean found = false;
         for (FilterRepresentation representation : filtersRepresentations) {
             mCategoryGeometryAdapter.add(new Action(this, representation));
-            if (representation instanceof FilterDrawRepresentation) {
-                found = true;
-            }
-        }
-        if (!found) {
-            FilterRepresentation representation =
-                    new FilterDrawRepresentation(getString(R.string.imageDraw));
-            Action action = new Action(this, representation);
-            action.setIsDoubleAction(true);
-            mCategoryGeometryAdapter.add(action);
         }
     }
 
@@ -771,6 +760,16 @@ public class FilterShowActivity extends FragmentActivity implements OnItemClickL
                 Bitmap originalHires = ImageLoader.loadOrientedConstrainedBitmap(master.getUri(),
                         master.getActivity(), highresPreviewSize,
                         master.getOrientation(), bounds);
+
+                // Force the bitmap to even width and height which is required by beautification algo
+                Bitmap tempBmp = MasterImage.convertToEvenNumberWidthImage(originalHires);
+                if(tempBmp != null && originalHires != null) {
+                    if(!originalHires.isRecycled() && originalHires != tempBmp) {
+                        originalHires.recycle();
+                    }
+                    originalHires = tempBmp;
+                }
+
                 master.setOriginalBounds(bounds);
                 master.setOriginalBitmapHighres(originalHires);
                 Log.d(LOGTAG, "FilterShowActivity.LoadHighresBitmapTask.doInBackground(): originalHires.WH is (" + originalHires.getWidth()
@@ -1322,6 +1321,9 @@ public class FilterShowActivity extends FragmentActivity implements OnItemClickL
     }
 
     void resetHistory() {
+        if (mMasterImage == null) {
+            return;
+        }
         HistoryManager adapter = mMasterImage.getHistory();
         adapter.reset();
         HistoryItem historyItem = adapter.getItem(0);

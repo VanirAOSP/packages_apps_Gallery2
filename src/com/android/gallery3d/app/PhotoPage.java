@@ -407,7 +407,13 @@ public abstract class PhotoPage extends ActivityState implements
         mIsFromWidget = data.getBoolean(KEY_IS_FROM_WIDGET, false);
         mStartInFilmstrip = data.getBoolean(KEY_START_IN_FILMSTRIP, false);
         boolean inCameraRoll = data.getBoolean(KEY_IN_CAMERA_ROLL, false);
-        mCurrentIndex = data.getInt(KEY_INDEX_HINT, 0);
+        if (restoreState == null || mSetPathString == null) {
+            mCurrentIndex = data.getInt(KEY_INDEX_HINT, 0);
+        } else {
+            mCurrentIndex = restoreState.getInt(KEY_INDEX_HINT, 0);
+            //we only save index in onSaveState, set itemPath to null to get the right path later
+            itemPath = null;
+        }
         if (mSetPathString != null) {
             mShowSpinner = true;
             mAppBridge = (AppBridge) data.getParcelable(KEY_APP_BRIDGE);
@@ -562,7 +568,11 @@ public abstract class PhotoPage extends ActivityState implements
                 public void onLoadingFinished(boolean loadingFailed) {
                     if (!mModel.isEmpty()) {
                         MediaItem photo = mModel.getMediaItem(0);
-                        if (photo != null) updateCurrentPhoto(photo);
+                        if (photo != null) {
+                            updateCurrentPhoto(photo);
+                        } else {
+                            mModel.resume();
+                        }
                     } else if (mIsActive) {
                         // We only want to finish the PhotoPage if there is no
                         // deletion that the user can undo.
@@ -608,6 +618,12 @@ public abstract class PhotoPage extends ActivityState implements
                         }
                     }
                 });
+    }
+
+    @Override
+    protected void onSaveState(Bundle outState) {
+        outState.putInt(KEY_INDEX_HINT,mCurrentIndex);
+        super.onSaveState(outState);
     }
 
     @Override
@@ -667,15 +683,21 @@ public abstract class PhotoPage extends ActivityState implements
     private void setupNfcBeamPush() {
         if (!ApiHelper.HAS_SET_BEAM_PUSH_URIS) return;
 
-        NfcAdapter adapter = NfcAdapter.getDefaultAdapter(mActivity);
-        if (adapter != null) {
-            adapter.setBeamPushUris(null, mActivity);
-            adapter.setBeamPushUrisCallback(new CreateBeamUrisCallback() {
-                @Override
-                public Uri[] createBeamUris(NfcEvent event) {
-                    return mNfcPushUris;
-                }
-            }, mActivity);
+        try {
+            NfcAdapter adapter = NfcAdapter.getDefaultAdapter(mActivity);
+            if (adapter != null) {
+                adapter.setBeamPushUris(null, mActivity);
+                adapter.setBeamPushUrisCallback(new CreateBeamUrisCallback() {
+                    @Override
+                    public Uri[] createBeamUris(NfcEvent event) {
+                        return mNfcPushUris;
+                    }
+                }, mActivity);
+            }
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -828,6 +850,16 @@ public abstract class PhotoPage extends ActivityState implements
             if (!mHaveImageEditor) {
                 supportedOperations &= ~MediaObject.SUPPORT_EDIT;
             }
+           // If current photo page is single item only, to cut some menu items
+           boolean singleItemOnly = mData.getBoolean("SingleItemOnly", false);
+           if (singleItemOnly) {
+               supportedOperations &= ~MediaObject.SUPPORT_DELETE;
+               supportedOperations &= ~MediaObject.SUPPORT_ROTATE;
+               supportedOperations &= ~MediaObject.SUPPORT_SHARE;
+               supportedOperations &= ~MediaObject.SUPPORT_CROP;
+               supportedOperations &= ~MediaObject.SUPPORT_INFO;
+               supportedOperations &= ~MediaObject.SUPPORT_SETAS;
+           }
         }
         MenuExecutor.updateMenuOperation(menu, supportedOperations);
     }
@@ -1143,7 +1175,12 @@ public abstract class PhotoPage extends ActivityState implements
                 return true;
             }
             case R.id.print: {
-                mActivity.printSelectedImage(manager.getContentUri(path));
+                try {
+                    mActivity.printSelectedImage(manager.getContentUri(path));
+                } catch (SecurityException e) {
+                    e.printStackTrace();
+                    mActivity.finish();
+                }
                 return true;
             }
             case R.id.action_delete:
@@ -1312,7 +1349,8 @@ public abstract class PhotoPage extends ActivityState implements
             if (albumPath == null) {
                 return;
             }
-            if (!albumPath.equalsIgnoreCase(mOriginalSetPathString)) {
+            boolean isClusterType = FilterUtils.isClusterPath(mOriginalSetPathString);
+            if (!albumPath.equalsIgnoreCase(mOriginalSetPathString) && !isClusterType) {
                 // If the edited image is stored in a different album, we need
                 // to start a new activity state to show the new image
                 Bundle data = new Bundle(getData());
@@ -1457,15 +1495,6 @@ public abstract class PhotoPage extends ActivityState implements
         } else if (albumPageTransition == MSG_ALBUMPAGE_PICKED) {
             mPhotoView.setFilmMode(false);
         }
-    }
-
-    @Override
-    public void onConfigurationChanged(Configuration config) {
-        super.onConfigurationChanged(config);
-        if(mIsActive) return;
-        mActivity.GLRootResume(true);
-        mModel.resume();
-        mActivity.GLRootResume(false);
     }
 
     @Override

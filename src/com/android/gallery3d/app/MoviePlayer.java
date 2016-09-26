@@ -103,7 +103,6 @@ public class MoviePlayer implements
 
     private static final String VIRTUALIZE_EXTRA = "virtualize";
     private static final long BLACK_TIMEOUT = 500;
-    private static final int DELAY_REMOVE_MS = 10000;
     public static final int SERVER_TIMEOUT = 8801;
 
     // If we resume the acitivty with in RESUMEABLE_TIMEOUT, we will keep playing.
@@ -139,6 +138,9 @@ public class MoviePlayer implements
 
     // If the time bar is visible.
     private boolean mShowing;
+
+    // used to track what type of audio focus loss caused the video to pause
+    private boolean mPausedByTransientLossOfFocus = false;
 
     private Virtualizer mVirtualizer;
 
@@ -221,6 +223,28 @@ public class MoviePlayer implements
         }
     };
 
+    private AudioManager.OnAudioFocusChangeListener mAudioFocusListener =
+            new AudioManager.OnAudioFocusChangeListener() {
+                public void onAudioFocusChange(int focusChange) {
+                    switch (focusChange) {
+                        case AudioManager.AUDIOFOCUS_GAIN:
+                            if (mPausedByTransientLossOfFocus) {
+                                onPlayVideo();
+                                mPausedByTransientLossOfFocus = false;
+                            }
+                            break;
+                        case AudioManager.AUDIOFOCUS_LOSS:
+                        case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+                            if (mVideoView != null && mVideoView.isPlaying()) {
+                                onPauseVideo();
+                                mPausedByTransientLossOfFocus = true;
+                            }
+                            break;
+                        default:
+                    }
+                }
+            };
+
     public MoviePlayer(View rootView, final MovieActivity movieActivity,
             IMovieItem info, Bundle savedInstance, boolean canReplay) {
         mContext = movieActivity.getApplicationContext();
@@ -237,6 +261,7 @@ public class MoviePlayer implements
 
         mVideoView.setOnErrorListener(this);
         mVideoView.setOnCompletionListener(this);
+        mVideoView.setOnAudioFocusChangeListener(mAudioFocusListener);
 
         if (mVirtualizer != null) {
             mVirtualizer.release();
@@ -427,7 +452,6 @@ public class MoviePlayer implements
     public void setDefaultScreenMode() {
         addBackground();
         mController.setDefaultScreenMode();
-        removeBackground();
     }
 
     public boolean onPause() {
@@ -600,7 +624,6 @@ public class MoviePlayer implements
         }
         if (start) {
             mVideoView.start();
-            mVideoView.setVisibility(View.VISIBLE);
             mActivityContext.initEffects(mVideoView.getAudioSessionId());
         }
         //we may start video from stopVideo,
@@ -667,12 +690,14 @@ public class MoviePlayer implements
         }
         if (mMovieItem.getError()) {
             Log.w(TAG, "error occured, exit the video player!");
+            mHandler.removeCallbacksAndMessages(null);
             mActivityContext.finish();
             return;
         }
         if (mPlayerExt.getLoop()) {
             onReplay();
         } else { //original logic
+            mHandler.removeCallbacksAndMessages(null);
             mTState = TState.COMPELTED;
             if (mCanReplay) {
                 mController.showEnded();
@@ -688,17 +713,25 @@ public class MoviePlayer implements
     @Override
     public void onPlayPause() {
         if (mVideoView.isPlaying()) {
-            if (mVideoView.canPause()) {
-                pauseVideo();
-                //set view disabled(play/pause asynchronous processing)
-                mController.setViewEnabled(true);
-                if (mControllerRewindAndForwardExt != null) {
-                    mControllerRewindAndForwardExt.showControllerButtonsView(mPlayerExt
-                            .canStop(), false, false);
-                }
-            }
+            onPauseVideo();
         } else {
-            playVideo();
+            onPlayVideo();
+        }
+    }
+
+    private void onPlayVideo() {
+        playVideo();
+        //set view disabled(play/pause asynchronous processing)
+        mController.setViewEnabled(true);
+        if (mControllerRewindAndForwardExt != null) {
+            mControllerRewindAndForwardExt.showControllerButtonsView(mPlayerExt
+                    .canStop(), false, false);
+        }
+    }
+
+    private void onPauseVideo() {
+        if (mVideoView.canPause()) {
+            pauseVideo();
             //set view disabled(play/pause asynchronous processing)
             mController.setViewEnabled(true);
             if (mControllerRewindAndForwardExt != null) {
@@ -745,7 +778,6 @@ public class MoviePlayer implements
     public void onHidden() {
         mShowing = false;
         showSystemUi(false);
-        removeBackground();
     }
 
     @Override
@@ -938,7 +970,8 @@ public class MoviePlayer implements
     }
 
     public boolean isFullBuffer() {
-        if (mStreamingType == STREAMING_RTSP || mStreamingType == STREAMING_SDP) {
+        if (mStreamingType == STREAMING_RTSP || mStreamingType == STREAMING_SDP
+                || mStreamingType == STREAMING_HTTP) {
             return false;
         }
         return true;
@@ -1025,31 +1058,11 @@ public class MoviePlayer implements
         return mVideoView;
     }
 
-    // Wait for any animation, ten seconds should be enough
-    private final Runnable mRemoveBackground = new Runnable() {
-        @Override
-        public void run() {
-            if (LOG) {
-                Log.v(TAG, "mRemoveBackground.run()");
-            }
-            mRootView.setBackground(null);
-        }
-    };
-
-    private void removeBackground() {
-        if (LOG) {
-            Log.v(TAG, "removeBackground()");
-        }
-        mHandler.removeCallbacks(mRemoveBackground);
-        mHandler.postDelayed(mRemoveBackground, DELAY_REMOVE_MS);
-    }
-
     // add background for removing ghost image.
     private void addBackground() {
         if (LOG) {
             Log.v(TAG, "addBackground()");
         }
-        mHandler.removeCallbacks(mRemoveBackground);
         mRootView.setBackgroundColor(Color.BLACK);
     }
 
