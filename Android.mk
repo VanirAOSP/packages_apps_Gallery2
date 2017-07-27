@@ -29,20 +29,17 @@ LOCAL_AAPT_FLAGS := \
 
 LOCAL_PACKAGE_NAME := Gallery2
 
-LOCAL_PRIVILEGED_MODULE := true
-
 LOCAL_OVERRIDES_PACKAGES := Gallery Gallery3D GalleryNew3D
 
 LOCAL_AAPT_FLAGS += --rename-manifest-package com.android.gallery3d
 
-#LOCAL_SDK_VERSION := current
+LOCAL_SDK_VERSION := current
+LOCAL_MIN_SDK_VERSION := 23
 
 LOCAL_JNI_SHARED_LIBRARIES := libjni_gallery_eglfence libjni_gallery_filters libjni_gallery_jpegstream
-LOCAL_SHARED_LIBRARIES += libjni_dualcamera libjni_trueportrait
+LOCAL_SHARED_LIBRARIES += libjni_dualcamera libjni_trueportrait libjni_filtergenerator
 
-ifeq ($(TARGET_TS_MAKEUP), true)
-  LOCAL_REQUIRED_MODULES := libts_detected_face_jni libts_face_beautify_jni
-endif
+LOCAL_REQUIRED_MODULES := libts_detected_face_jni libts_face_beautify_jni
 
 LOCAL_PROGUARD_FLAG_FILES := proguard.flags
 

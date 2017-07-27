@@ -24,12 +24,9 @@
 
     <original-package android:name="com.android.gallery3d" />
 
-    <uses-sdk android:minSdkVersion="18" android:targetSdkVersion="24"/>
+    <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="25"/>
 
     <permission android:name="com.android.gallery3d.permission.GALLERY_PROVIDER"
-            android:protectionLevel="signatureOrSystem" />
-
-    <permission android:name="com.android.gallery3d.permission.STORAGE_CHANGE"
             android:protectionLevel="signatureOrSystem" />
 
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -111,7 +108,7 @@
 
         <activity android:name="com.android.gallery3d.app.GalleryActivity"
                 android:theme="@style/AppTheme"
-                android:configChanges="keyboardHidden|orientation|screenSize">
+                android:configChanges="keyboardHidden|orientation|screenSize|locale|fontScale|layoutDirection">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -274,7 +271,7 @@
         <activity
             android:name="com.android.gallery3d.filtershow.FilterShowActivity"
             android:theme="@style/Theme.FilterShow"
-            android:configChanges="keyboardHidden|orientation|screenSize|locale|layoutDirection">
+            android:configChanges="keyboardHidden|orientation|screenSize|layoutDirection">
             <intent-filter>
                 <action android:name="android.intent.action.EDIT" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -378,14 +375,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- Receiver to keep the storage path for the camera in sync -->
-        <receiver android:name="com.android.gallery3d.app.StorageChangeReceiver"
-            android:permission="com.android.gallery3d.permission.STORAGE_CHANGE" >
-            <intent-filter>
-                <action android:name="com.android.gallery3d.STORAGE_CHANGE" />
-            </intent-filter>
-        </receiver>
-
         <service android:name="com.android.camera.MediaSaveService" />
 
         <activity android:name="org.codeaurora.gallery3d.video.SettingsActivity"
@@ -419,15 +408,8 @@
                 android:theme="@android:style/Theme.Material.Light"
                 android:configChanges="orientation|keyboardHidden|screenSize|mnc|mcc">
         </activity>
-        <activity android:name="com.android.gallery3d.app.dualcam3d.ThreeDimensionalActivity"/>
-        <provider
-            android:name="android.support.v4.content.FileProvider"
-            android:authorities="com.android.gallery3d.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
-        </provider>
+        <activity android:name="com.android.gallery3d.app.dualcam3d.ThreeDimensionalActivity"
+            android:configChanges="orientation|screenSize|layoutDirection">
+        </activity>
     </application>
 </manifest>

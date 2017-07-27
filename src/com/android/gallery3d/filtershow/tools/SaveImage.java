@@ -34,6 +34,8 @@ import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.net.Uri;
@@ -272,7 +274,7 @@ public class SaveImage {
         return exif;
     }
 
-    public boolean putExifData(File file, ExifInterface exif, Bitmap image,
+    public static boolean putExifData(File file, ExifInterface exif, Bitmap image,
             int jpegCompressQuality) {
         boolean ret = false;
         OutputStream s = null;
@@ -827,6 +829,10 @@ public class SaveImage {
         }
 
         if(underlay != null) {
+            int ori = ImageLoader.getMetadataOrientation(mContext, underlayUri);
+            if (ori != ImageLoader.ORI_NORMAL) {
+                underlay = ImageLoader.orientBitmap(underlay, ori);
+            }
             RectF destRect = new RectF();
             Rect imageBounds = MasterImage.getImage().getImageBounds();
             Rect underlayBounds = MasterImage.getImage().getFusionBounds();
@@ -844,6 +850,7 @@ public class SaveImage {
             paint.setAntiAlias(true);
             paint.setFilterBitmap(true);
             paint.setDither(true);
+            paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP));
 
             canvas.drawBitmap(bitmap, null, destRect, paint);
         }

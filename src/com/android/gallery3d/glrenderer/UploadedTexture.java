@@ -134,6 +134,7 @@ public abstract class UploadedTexture extends BasicTexture {
     private Bitmap getBitmap() {
         if (mBitmap == null) {
             mBitmap = onGetBitmap();
+            if (mBitmap == null)return null;
             int w = mBitmap.getWidth() + mBorder * 2;
             int h = mBitmap.getHeight() + mBorder * 2;
             if (mWidth == UNSPECIFIED) {
@@ -188,7 +189,12 @@ public abstract class UploadedTexture extends BasicTexture {
             if (mThrottled && ++sUploadedCount > UPLOAD_LIMIT) {
                 return;
             }
-            uploadToCanvas(canvas);
+            try {
+                uploadToCanvas(canvas);
+            } catch (RuntimeException e) {
+                mContentValid = true;
+                e.printStackTrace();
+            }
         } else if (!mContentValid) {
             Bitmap bitmap = getBitmap();
             int format = GLUtils.getInternalFormat(bitmap);

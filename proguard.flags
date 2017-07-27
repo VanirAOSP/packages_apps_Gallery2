@@ -90,6 +90,3 @@
 -keep class com.thundersoft.hz.selfportrait.makeup.engine.MakeupEngine{
   *;
 }
-
-# TODO: remove or rename android.util.Pools.java from our source.
--dontwarn android.util.Pools*

@@ -82,7 +82,7 @@ public class WidgetService extends RemoteViewsService {
         }
 
         @Override
-        public synchronized void onDestroy() {
+        public void onDestroy() {
             mSource.close();
             mSource = null;
         }
@@ -117,12 +117,13 @@ public class WidgetService extends RemoteViewsService {
         }
 
         @Override
-        public synchronized RemoteViews getViewAt(int position) {
-            if (mSource == null) {
-                // This instance has been destroyed, exit out
-                return null;
+        public RemoteViews getViewAt(int position) {
+            Bitmap bitmap = null;
+            try {
+                bitmap = mSource.getImage(position);
+            } catch (UnsupportedOperationException e){
+                // catch exception here to avoid FC
             }
-            Bitmap bitmap = mSource.getImage(position);
 
             boolean isDrm = false;
 //            if (DrmHelper.isDrmFile(DrmHelper.getFilePath(

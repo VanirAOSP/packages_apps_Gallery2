@@ -797,10 +797,14 @@ public class AlbumPage extends ActivityState implements GalleryActionBar.Cluster
             case SelectionManager.ENTER_SELECTION_MODE: {
                 mActionModeHandler.startActionMode();
                 performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+                ((GalleryActivity) mActivity).toggleNavBar(false);
                 break;
             }
             case SelectionManager.LEAVE_SELECTION_MODE: {
                 mActionModeHandler.finishActionMode();
+                if (mActivity.getStateManager().getStateCount() <= 1) {
+                    ((GalleryActivity) mActivity).toggleNavBar(true);
+                }
                 mRootPane.invalidate();
                 updateMenuItem();
                 break;

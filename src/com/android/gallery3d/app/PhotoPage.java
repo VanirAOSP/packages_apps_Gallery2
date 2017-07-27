@@ -116,6 +116,7 @@ public abstract class PhotoPage extends ActivityState implements
     public static final String KEY_MEDIA_SET_PATH = "media-set-path";
     public static final String KEY_MEDIA_ITEM_PATH = "media-item-path";
     public static final String KEY_INDEX_HINT = "index-hint";
+    public static final String KEY_CURRENT_PHOTO_HINT = "currtent_photo_path";
     public static final String KEY_OPEN_ANIMATION_RECT = "open-animation-rect";
     public static final String KEY_APP_BRIDGE = "app-bridge";
     public static final String KEY_TREAT_BACK_AS_UP = "treat-back-as-up";
@@ -429,6 +430,12 @@ public abstract class PhotoPage extends ActivityState implements
             //we only save index in onSaveState, set itemPath to null to get the right path later
             itemPath = null;
         }
+        if ((mCurrentPhoto == null) && (restoreState != null)) {
+            String curPath = restoreState.getString(KEY_CURRENT_PHOTO_HINT, null);
+            if (curPath != null)
+                mCurrentPhoto = (MediaItem)
+                        mActivity.getDataManager().getMediaObject(curPath);
+        }
         if (mSetPathString != null) {
             mShowSpinner = true;
             mAppBridge = (AppBridge) data.getParcelable(KEY_APP_BRIDGE);
@@ -619,8 +626,13 @@ public abstract class PhotoPage extends ActivityState implements
 
     @Override
     protected void onSaveState(Bundle outState) {
-        outState.putInt(KEY_INDEX_HINT,mCurrentIndex);
-        super.onSaveState(outState);
+        if (mCurrentPhoto != null) {
+            outState.putInt(KEY_INDEX_HINT,mCurrentIndex);
+            outState.putString(KEY_CURRENT_PHOTO_HINT, mCurrentPhoto.getFilePath());
+            super.onSaveState(outState);
+        } else {
+            onBackPressed();
+        }
     }
 
     @Override
@@ -671,6 +683,7 @@ public abstract class PhotoPage extends ActivityState implements
             case R.id.photopage_bottom_control_share:
                  if (mModel != null && mModel.getMediaItem(0) != null) {
                  Uri uri = mActivity.getDataManager().getContentUri(mModel.getMediaItem(0).getPath());
+                 mActivity.isTopMenuShow = true;
                  mShareIntent.setType(MenuExecutor.getMimeType(mModel
                     .getMediaItem(0).getMediaType()));
                  mShareIntent.putExtra(Intent.EXTRA_STREAM, uri);
@@ -701,7 +714,8 @@ public abstract class PhotoPage extends ActivityState implements
 
     @Override
     public boolean canDisplay3DButton() {
-        return bShow3DButton && mShowBars && !mPhotoView.getFilmMode();
+        return bShow3DButton && mShowBars
+                && (mPhotoView == null ? false : !mPhotoView.getFilmMode());
     }
 
     @Override
@@ -1008,7 +1022,6 @@ public abstract class PhotoPage extends ActivityState implements
     @Override
     protected void onBackPressed() {
         showBars();
-        ((GalleryActivity)mActivity).toggleNavBar(true);
         if (mShowDetails) {
             hideDetails();
         } else if (mAppBridge == null || !switchWithCaptureAnimation(-1)) {
@@ -1027,7 +1040,7 @@ public abstract class PhotoPage extends ActivityState implements
                 mActionBar.setBackGroundDefault();
                 int count = mActivity.getStateManager().getStateCount();
                 if (mIsFromVideoScreen || count == 1 || mIsFromTimelineScreen) {
-                    ((GalleryActivity)mActivity).toggleNavBar(true);
+                    ((GalleryActivity) mActivity).toggleNavBar(true);
                     if (mModel instanceof PhotoDataAdapter) {
                         ((PhotoDataAdapter) mModel).setDataListener(null);
                     }
@@ -1651,7 +1664,7 @@ public abstract class PhotoPage extends ActivityState implements
         mActionBar.addOnMenuVisibilityListener(mMenuVisibilityListener);
         refreshBottomControlsWhenReady();
         if (((mSecureAlbum == null) && (mSetPathString != null))) {
-            ((GalleryActivity)mActivity).toggleNavBar(false);
+            ((GalleryActivity) mActivity).toggleNavBar(false);
         }
         // if (mShowSpinner && mPhotoView.getFilmMode()) {
         // mActionBar.enableAlbumModeMenu(
@@ -1779,6 +1792,7 @@ public abstract class PhotoPage extends ActivityState implements
 
         @Override
         protected Void doInBackground(Void... params) {
+            if (mCurrentPhoto == null)return null;
             MpoParser parser = MpoParser.parse(mActivity, mCurrentPhoto.getContentUri());
             mPrimaryImgData = parser.readImgData(true);
             mAuxImgData = parser.readImgData(false);

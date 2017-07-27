@@ -28,14 +28,10 @@ import android.content.DialogInterface.OnClickListener;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
-import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.IBinder;
-import android.os.storage.StorageManager;
-import android.preference.PreferenceManager;
 import android.support.v4.print.PrintHelper;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -49,7 +45,6 @@ import com.android.gallery3d.data.MediaItem;
 import com.android.gallery3d.filtershow.cache.ImageLoader;
 import com.android.gallery3d.ui.GLRoot;
 import com.android.gallery3d.ui.GLRootView;
-import com.android.gallery3d.util.MediaSetUtils;
 import com.android.gallery3d.util.PanoramaViewHelper;
 import com.android.gallery3d.util.ThreadPool;
 import com.android.photos.data.GalleryBitmapPool;
@@ -66,6 +61,7 @@ public abstract class AbstractGalleryActivity extends AbstractPermissionActivity
     private TransitionStore mTransitionStore = new TransitionStore();
     private PanoramaViewHelper mPanoramaViewHelper;
     private Toolbar mToolbar;
+    public boolean isTopMenuShow = false;
 
     private AlertDialog mAlertDialog = null;
     private BroadcastReceiver mMountReceiver = new BroadcastReceiver() {
@@ -81,27 +77,11 @@ public abstract class AbstractGalleryActivity extends AbstractPermissionActivity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setStoragePath();
         mOrientationManager = new OrientationManager(this);
         getWindow().setBackgroundDrawable(null);
         mPanoramaViewHelper = new PanoramaViewHelper(this);
         mPanoramaViewHelper.onCreate();
         doBindBatchService();
-    }
-
-    private void setStoragePath() {
-        final String defaultStoragePath = Environment.getExternalStorageDirectory().toString();
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        String storagePath = prefs.getString(StorageChangeReceiver.KEY_STORAGE,
-                defaultStoragePath);
-
-        // Check if volume is mounted
-        StorageManager sm = (StorageManager) getSystemService(Context.STORAGE_SERVICE);
-        if (!sm.getVolumeState(storagePath).equals(Environment.MEDIA_MOUNTED)) {
-            storagePath = defaultStoragePath;
-        }
-
-        MediaSetUtils.setRoot(storagePath);
     }
 
     @Override
@@ -225,6 +205,12 @@ public abstract class AbstractGalleryActivity extends AbstractPermissionActivity
     @Override
     protected void onResume() {
         super.onResume();
+        // If top menu shows, GLView is active,
+        // so don't need to resume it.
+        if (isTopMenuShow) {
+            isTopMenuShow = false;
+            return;
+        }
         mGLRootView.lockRenderThread();
         try {
             getStateManager().resume();
@@ -239,6 +225,10 @@ public abstract class AbstractGalleryActivity extends AbstractPermissionActivity
     @Override
     protected void onPause() {
         super.onPause();
+        // If top menu shows, don't pause GLView,
+        // so it can redraw when rotating.
+        if (isTopMenuShow)
+            return;
         mOrientationManager.pause();
         mGLRootView.onPause();
         mGLRootView.lockRenderThread();
