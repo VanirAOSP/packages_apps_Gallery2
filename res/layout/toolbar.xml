@@ -41,9 +41,7 @@
         android:background="@color/primary"
         android:elevation="8dp"
         android:titleTextAppearance="@style/ToolbarTitleStyle"
-        android:popupTheme="@style/ToolbarPopUpTheme" >
-
-    </Toolbar>
+        android:popupTheme="@style/ToolbarPopUpTheme" />
 
 </android.support.design.widget.AppBarLayout>
 
